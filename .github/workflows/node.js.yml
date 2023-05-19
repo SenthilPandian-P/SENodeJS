@@ -43,6 +43,9 @@ jobs:
       with:
         name: Node.js
 
+    - name: Install dependencies
+      run: npm install @actions/core
+
     - name: 'Deploy to Azure WebApp'
       id: deploy-to-webapp 
       uses: azure/webapps-deploy@05ac4e98bfa0f856e6669624239291c73ca27698
