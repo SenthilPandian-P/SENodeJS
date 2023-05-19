@@ -39,9 +39,9 @@ jobs:
 
     steps:
     - name: Download artifact from build job
-      uses: actions/download-artifact@v3
+      uses: actions/checkout@v3
       with:
-        name: PSPNJS
+        name: Node.js
 
     - name: 'Deploy to Azure WebApp'
       id: deploy-to-webapp 
