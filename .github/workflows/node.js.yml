@@ -1,39 +1,55 @@
-trigger:
-  branches:
-    include:
-      - main
+# This workflow will do a clean installation of node dependencies, cache/restore them, build the source code and run tests across different versions of node
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-nodejs
 
-pool:
-  vmImage: 'windows-latest'
+name: Node.js CI
 
-steps:
-  - task: NodeTool@0
-    inputs:
-      versionSpec: '18.x'
-    displayName: 'Install Node.js'
+on:
+  push:
+  	branches: [ "main" ]
+  pull_request:
+   	branches: [ "main" ]
 
-  - script: |
-      npm install
-      npm run build
-    displayName: 'Install dependencies and build'
+jobs:
+  build:
 
-  - task: ArchiveFiles@2
-    inputs:
-      rootFolderOrFile: '$(Build.SourcesDirectory)'
-      includeRootFolder: false
-      archiveType: 'zip'
-      archiveFile: '$(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip'
-      replaceExistingArchive: true
+    runs-on: ubuntu-latest
 
-  - task: PublishBuildArtifacts@1
-    inputs:
-      PathtoPublish: '$(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip'
-      ArtifactName: 'drop'
-      publishLocation: 'container'
+    strategy:
+      matrix:
+        node-version: [16.x, 18.x]
+        # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
 
-  - task: AzureWebApp@1
-    inputs:
-      azureSubscription: 'ASP-DefaultResourceGroupnull-a997 (F1: 1)'
-      appName: 'PSPNJS'
-      package: '$(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip'
-      deploymentMethod: 'auto'
+    steps:
+    - uses: actions/checkout@v3
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+    - run: npm ci
+    - run: npm run build --if-present
+    - run: npm test
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    environment:
+      name: 'production'
+      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
+
+    steps:
+    - name: Download artifact from build job
+      uses: actions/checkout@v3
+      with:
+        name: Node.js
+
+    - name: Install dependencies
+      run: npm install @actions/core
+
+    - name: 'Deploy to Azure WebApp'
+      id: deploy-to-webapp 
+      uses: azure/webapps-deploy@1002964a-cef2-4d7b-b339-b08d714b75cd
+      with:
+        app-name: ${{ env.AZURE_WEBAPP_NAME }}
+        publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+        package: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
